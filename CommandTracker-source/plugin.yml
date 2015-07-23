@@ -1,0 +1,16 @@
+name: CommandTracker
+main: CommandTracker\CommandTracker
+version: "1.0"
+api: [1.10.0]
+load: STARTUP
+author: Scott Handley
+description: Logs commands issued by players and console operators. Censors commands for inappropriate language.
+commands:
+    track:
+        description: "Administer command auditing and censorship"
+        usage: "/track ?|subcmd [options]"
+        permissions: commandtracker.commands.track
+permissions:
+    commandtracker.commands.track:
+        default: false
+        description: "Grants administrators to manage command tracking behavior"

@@ -1,0 +1,5 @@
+---
+show-passwords: false
+commands-censored: say,tell
+words-banned:
+...
