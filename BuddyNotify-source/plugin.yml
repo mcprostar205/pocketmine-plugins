@@ -1,0 +1,19 @@
+name: BuddyNotify
+main: BuddyNotify\BuddyNotify
+version: "1.0"
+api: [1.10.0]
+load: STARTUP
+author: Scott Handley
+description: Sends proactive notifications to player's email
+commands:
+    email:
+        description: "Send and register for email alerts"
+        usage: "/email ?|subcmd [options]"
+        permissions: buddynotify.commands.email
+permissions:
+    buddynotify.commands.email:
+        default: true
+        description: "Allows users to notify players of their activity."        
+        
+        
+   

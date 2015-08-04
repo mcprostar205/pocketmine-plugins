@@ -1,0 +1,9 @@
+---
+buddynotifier: true
+system-address: 
+notify-start: true
+notify-stop: true
+notify-auth: true
+notify-quit: true
+date-format: "D M j, Y, g:i a"
+...
