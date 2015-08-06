@@ -143,13 +143,22 @@ class CommandTracker extends PluginBase implements CommandExecutor
         $wordfound = false;
         $words     = \explode(" ", $message);
         
+        if( !isset( $this->wordsBanned ) )
+        {
+            return $wordfound;
+        }
         /* check for the first word banned word occurance */
         foreach( $this->wordsBanned as $bannedWord )
         {
             // breaks on the first inappropriate word encountered
             
+            // verify word is set
+            if( !isset( $bannedWord[0] ) )
+            {
+                break;
+            }
             // complete word match?
-            if( $bannedWord{0} === "\\" )
+            if( $bannedWord[0] === '\\' )
             {
                 $bannedWord = \substr($bannedWord,1);
                 foreach( $words as $word )

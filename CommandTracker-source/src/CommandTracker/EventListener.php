@@ -41,7 +41,7 @@ class EventListener extends PluginBase implements Listener
         $playername = $event->getPlayer()->getDisplayName();
                 
         // censor global chat if "say" command is also censored
-        if( $message{0} != "/" && $this->plugin->isCommandCensored("say") )
+        if( $message[0] != '/' && $this->plugin->isCommandCensored("say") )
         {
             $this->plugin->getLogger()->info("<$playername> /say $message"); 
             $bannedword = $this->plugin->hasBannedWord($message);

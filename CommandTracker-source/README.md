@@ -1,4 +1,4 @@
-#CommandTracker v1.0
+#CommandTracker v1.0.1
 
 Plugin for PocketMine-MP that logs all player commands and censors commands for inappropriate language. 
    
@@ -75,3 +75,11 @@ All methods are available through the main plugin object
 * boolean showPasswords() 
 * boolean isCommandCensored(String $command)
 * boolean hasBannedWord(String $message)
+
+## Release Notes
+
+### 1.0.1
+* Fixed empty banned word condition throwing the following exception when Player chats: 
+
+`[Server thread/CRITICAL]: "Could not pass event 'pocketmine\event\player\PlayerCommandPreprocessEvent' to 'CommandTracker v1.0': Uninitialized string offset: 0 on CommandTracker\EventListener`
+`[22:14:33] [Server thread/NOTICE]: StringOutOfBoundsException: "Uninitialized string offset: 0" (E_NOTICE) in "/CommandTracker_v1.0.phar/src/CommandTracker/CommandTracker" at line 152`
