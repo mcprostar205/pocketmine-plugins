@@ -25,7 +25,7 @@ Plugin for PocketMine-MP that sends email notifications to players when server s
 
 ## Documentation 
 
-BuddyNotify provides system and player email notifications to PocketMine-MP servers. 
+BuddyNotify adds system and player email notifications to PocketMine-MP servers. 
 
 BuddyNotify is a quick and easy way to send alerts when your server starts and stops or
 to automatically notify players when one of their buddies joins or leaves the game! This 
@@ -53,12 +53,12 @@ For more information on setting up and configuring BuddyNotify, please see the D
 ## Commands
 
 * `/email a|add <buddy> : Add buddy to your alerts`
-* `/email d|del <buddy>"  : Remove buddy from your alerts`
+* `/email d|del <buddy>  : Remove buddy from your alerts`
 * `/email ls|list : Show your alerts email and assigned buddies`
 * `/email s|send <player>  : Send a player an email`
 * `/email r|reg <email> : Register your email to receive alerts`
 * `/email ur|unreg : Unregister your email from receiving alerts`
-* `/email us|unsub <buddy>"  : Unsubscribe from a buddy's alerts`
+* `/email us|unsub <buddy>  : Unsubscribe from a buddy's alerts`
 * `/email ?|help : Show sub-command help`
 * From Console: `/email <player> a|add <buddy> : Add buddy to player's alerts`
 * From Console: `/email <player> d|del <buddy> : Remove buddy from player's alerts`
