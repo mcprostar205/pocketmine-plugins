@@ -2,6 +2,7 @@
 
 /* 
  * Copyright (C) 2015 Scott Handley
+ * https://github.com/mcprostar205/pocketmine-plugins/tree/master/CommandTracker-source
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,13 +20,14 @@
 
 namespace CommandTracker;
 
+use LogLevel;
 use pocketmine\plugin\PluginBase;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerCommandPreprocessEvent;
 use pocketmine\event\server\ServerCommandEvent;
 use pocketmine\event\server\RemoteServerCommandEvent;
 use pocketmine\utils\TextFormat;
-
+ 
 class EventListener extends PluginBase implements Listener
 {
                 
@@ -36,66 +38,72 @@ class EventListener extends PluginBase implements Listener
         
     public function onPlayerCommand(PlayerCommandPreprocessEvent $event)
     {
-        $bannedword = false;
-        $message    = $event->getMessage();
         $playername = $event->getPlayer()->getDisplayName();
-                
-        // censor global chat if "say" command is also censored
-        if( $message[0] != '/' && $this->plugin->isCommandCensored("say") )
+        $message    = $event->getMessage();
+        $words      = \explode(" ", $message);
+
+        // global chat is the "say" command
+        if( $message[0] !== '/' )
         {
-            $this->plugin->getLogger()->info("<$playername> /say $message"); 
-            $bannedword = $this->plugin->hasBannedWord($message);
+            $cmd = "say";
         }
-        // obfuscate password from tracking during registration
-        elseif( (\substr_compare($message,"/register",0,9) === 0) &&
-                ($this->plugin->showPasswords() === false) )
-        {
-            $this->plugin->getLogger()->info("<$playername> /register ****");
-        }
-        // obfuscate password from tracking during login
-        elseif( (\substr_compare($message,"/login",0,6) === 0) &&
-                ($this->plugin->showPasswords() === false) )
-        {
-            $this->plugin->getLogger()->info("<$playername> /login ****");
-        }
-        // log the command
         else
         {
-            $this->plugin->getLogger()->info("<$playername> $message");
+            $cmd = \strtolower(\substr(\array_shift($words),1));
+        }
                 
-            // verify command qualifies for censorship
-            $words = \explode(" ", $message);
-            $cmd  = \array_shift($words);
-            if( $this->plugin->isCommandCensored(\substr($cmd,1)) && isset($words) )
-            {
-                $bannedword = $this->plugin->hasBannedWord($message);
-            }
-        }
-
-        // if banned word found, cancel command and inform player about inappropriate word usage
-        if( $bannedword === true )
+        // obfuscate password from tracking on SimpleAuth register or login commands
+        if( ((\strcmp($cmd,"register") === 0) || (\strcmp($cmd,"login") === 0)) &&
+                ($this->plugin->showPasswords() === false) )
         {
-            $this->plugin->getLogger()->warning("<$playername> used an inappropriate word. The command has been censored.");
-            $event->getPlayer()->sendMessage(TextFormat::RED . "Command cancelled due to inappropriate language. Administrator has been notified.");
-            $event->setCancelled(true);
+            $this->plugin->logMessage(LogLevel::INFO, "<$playername> /$cmd ****");
         }
+        else
+        {
+            if( $this->plugin->isCommandTracked($cmd) )
+            {
+                $this->plugin->logMessage(LogLevel::INFO, "<$playername> /$cmd " . \implode(" ", $words));
+            }
+            
+            // verify command qualifies for censorship
+            if( $this->plugin->isCommandCensored($cmd) && isset($words) )
+            {
+                // if banned word found, cancel command and inform player about inappropriate word usage
+                if( $this->plugin->hasBannedWord($message) === true )
+                {
+                    $this->plugin->logMessage(LogLevel::WARNING, "<$playername> used an inappropriate word. The command ($cmd) has been censored.");
+                    $event->getPlayer()->sendMessage(TextFormat::RED . "Command cancelled due to inappropriate language. Administrator has been notified.");
+                    $event->setCancelled(true);
+                        
+                } /* if( hasBannedWord ) */
+                    
+            } /* if( isCommandCensored ) */
+                   
+        } /* else $cmd (!register || !login) && showPasswords */
             
     } /* onPlayerCommand */
         
     public function onServerCommand(ServerCommandEvent $event)
     {
-        $command = $event->getCommand();   
-        $this->plugin->getLogger()->info("<CONSOLE> /$command");
+        $this->logConsoleCommand("CONSOLE", $event->getCommand()); 
         
     } /* onServerCommand */
 
     public function onRemoteCommand(RemoteServerCommandEvent $event)
-    {
-        $command = $event->getCommand();   
-        $this->plugin->getLogger()->info("<REMOTE> /$command");
+    {  
+        $this->logConsoleCommand("REMOTE", $event->getCommand()); 
         
     } /* onRemoteCommand */
 
+    protected function logConsoleCommand($context, $message)
+    {
+        $words = \explode(" ", $message);
+        $cmd   = \strtolower(\array_shift($words));
+        if( $this->plugin->isCommandTracked($cmd) )
+        {   
+            $this->plugin->logMessage(LogLevel::INFO, "<$context> /$message");
+        }
+    }
 }
 
 ?>

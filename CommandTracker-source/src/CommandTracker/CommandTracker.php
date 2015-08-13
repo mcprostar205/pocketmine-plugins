@@ -2,6 +2,7 @@
 
 /* 
  * Copyright (C) 2015 Scott Handley
+ * https://github.com/mcprostar205/pocketmine-plugins/tree/master/CommandTracker-source
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +20,7 @@
 
 namespace CommandTracker;
 
+use LogLevel;
 use pocketmine\plugin\PluginBase;
 use pocketmine\command\Command;
 use pocketmine\command\CommandExecutor;
@@ -28,12 +30,17 @@ use pocketmine\utils\TextFormat;
 
 class CommandTracker extends PluginBase implements CommandExecutor
 {
+    const PROP_LOG_TOFILE       = "log-tofile";
     const PROP_SHOW_PASSWORDS   = "show-passwords";
     const PROP_CENSOR_COMMANDS  = "commands-censored";
+    const PROP_IGNOR_COMMANDS   = "commands-ignored";
     const PROP_BANNED_WORDS     = "words-banned";
      
+    protected $logToFile        = true;
+    protected $logfile          = null;
     protected $passwordsVisible = false;
     protected $commandsCensored = [];
+    protected $commandsIgnored  = [];
     protected $wordsBanned      = [];
 
     public function onEnable()
@@ -42,12 +49,33 @@ class CommandTracker extends PluginBase implements CommandExecutor
         $this->saveDefaultConfig();
         $this->getServer()->getPluginManager()->registerEvents(new EventListener($this), $this);
             
+        $this->logToFile        = $this->getConfig()->get(CommandTracker::PROP_LOG_TOFILE);    
         $this->passwordsVisible = $this->getConfig()->get(CommandTracker::PROP_SHOW_PASSWORDS);    
         $this->commandsCensored = \explode(",", $this->getConfig()->get(CommandTracker::PROP_CENSOR_COMMANDS));
+        $this->commandsIgnored  = \explode(",", $this->getConfig()->get(CommandTracker::PROP_IGNOR_COMMANDS));
         $this->wordsBanned      = \explode(",", $this->getConfig()->get(CommandTracker::PROP_BANNED_WORDS));
+        
+        if( $this->logToFile === true )
+        {
+            if(!file_exists($this->getDataFolder() . "logs/"))
+            {
+                \mkdir($this->getDataFolder() . "logs/");
+            }
+            $logfilename = $this->getDataFolder() . "logs/CommandTracker_" . \date("Y-d-m_G-i-s") . ".log";
+            $this->logfile = \fopen($logfilename, "at");
+        }
         
     } /* onEnable */
 
+    public function onDisable() 
+    {
+        if( ($this->logToFile === true) && ($this->logfile !== null) )
+        {
+            \fclose($this->logfile);
+        }
+        
+    } /* onDisable */
+    
     public function onCommand(CommandSender $sender, Command $command, $label, array $args)
     {
         $message = null;
@@ -119,15 +147,32 @@ class CommandTracker extends PluginBase implements CommandExecutor
         
     } /* showPasswords */
         
+    public function isCommandTracked($command)
+    {
+        $cmdfound = false;
+        if( isset($this->commandsIgnored) )
+        {
+            foreach( $this->commandsIgnored as $ignoredCommand )
+            {
+                if( isset($ignoredCommand[0]) && \strcasecmp($command,$ignoredCommand) === 0 )
+                {
+                    $cmdfound = true;
+                    break;
+                }                
+            } /* foreach */
+        }
+        return !$cmdfound;
+        
+    } /* isCommandTracked */
+
     public function isCommandCensored($command)
     {
         $commandfound = false;
-        $command = \strtolower($command);
         if( isset($this->commandsCensored) )
         {
             foreach( $this->commandsCensored as $censoredCommand )
             {
-                if( \strcmp($command,$censoredCommand) === 0 )
+                if( isset($censoredCommand[0]) && \strcasecmp($command,$censoredCommand) === 0 )
                 {
                     $commandfound = true;
                     break;
@@ -183,7 +228,38 @@ class CommandTracker extends PluginBase implements CommandExecutor
         return $wordfound;
         
     } /* hasBannedWord */
-        
+    
+    public function logMessage($level, $message)
+    {
+        if( $this->logToFile !== true )
+        {
+            $this->getLogger()->log($level, $message);
+        }
+        else
+        {
+            $entry = \date("Y-d-m [G:i:s] ");
+            switch( $level )
+            {
+                case LogLevel::ERROR:
+                    $entry .= "[ERROR]: ";
+                    break;
+                
+                case LogLevel::WARNING:
+                    $entry .= "[WARNING]: ";
+                    break;
+                
+                case LogLevel::INFO:
+                default:
+                    $entry .= "[INFO]: ";
+                    break;                                       
+            }
+            
+            $entry .= $message . "\n";
+            \fwrite($this->logfile, $entry);
+        }
+                
+    } /* logMessage */
+    
     protected function banWord($word, $add = true)
     {
         $message = null;

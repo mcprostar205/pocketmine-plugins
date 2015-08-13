@@ -1,8 +1,9 @@
-#CommandTracker v1.0.1
+#CommandTracker v1.1
 
 Plugin for PocketMine-MP that logs all player commands and censors commands for inappropriate language. 
    
    Copyright (C) 2015 Scott Handley
+   https://github.com/mcprostar205/pocketmine-plugins/tree/master/CommandTracker-source
    
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,8 +57,10 @@ has been run at least one time.
 
 | Configuration | Type | Default | Description |
 | :---: | :---: | :---: | :--- |
+| log-tofile | boolean | false | Redirects tracking log from the console to a file in _CommandTracker/logs_.
 | show-passwords | boolean | false | Obfuscate passwords for SimpleAuth's "register" and "login" commands
 | commands-censored | string | say,tell | Comma separated list of commands that qualify for censoring.
+| commands-ignored | string | empty | Comma separate list of commands to suppress from tracking.
 | words-banned | string | empty | Comma separated list of words deemed inappropriate.
 
 ## Permissions
@@ -74,12 +77,27 @@ All methods are available through the main plugin object
 
 * boolean showPasswords() 
 * boolean isCommandCensored(String $command)
+* boolean isCommandTracked(String $command)
 * boolean hasBannedWord(String $message)
 
 ## Release Notes
 
+### 1.1
+
+* Added feature to redirect tracking activity to a log file. 
+
+A new _config.yml_ entry called `log-tofile` can be added with values `true` (file) or `false` (system console).
+
+Note: Log files are generated in the _CommandTracker/logs_ directory.
+
+* Added feature to ignor specific commands from tracking activity.
+
+A new _config.yml_ entry called `commands-ignored` can be added with a comma separated list of commands to ignor/suppress.
+
 ### 1.0.1
+
 * Fixed empty banned word condition throwing the following exception when Player chats: 
 
 `[Server thread/CRITICAL]: "Could not pass event 'pocketmine\event\player\PlayerCommandPreprocessEvent' to 'CommandTracker v1.0': Uninitialized string offset: 0 on CommandTracker\EventListener`
+
 `[22:14:33] [Server thread/NOTICE]: StringOutOfBoundsException: "Uninitialized string offset: 0" (E_NOTICE) in "/CommandTracker_v1.0.phar/src/CommandTracker/CommandTracker" at line 152`
