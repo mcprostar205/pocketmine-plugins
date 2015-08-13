@@ -1,7 +1,8 @@
 <?php
 
 /* 
- * Copyright (C) 2015 Scott Handley <https://github.com/>
+ * Copyright (C) 2015 Scott Handley 
+ * https://github.com/mcprostar205/pocketmine-plugins/tree/master/BuddyNotify-source
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,10 +32,12 @@ class BuddyNotify extends PluginBase implements CommandExecutor
 {    
     const PROP_NOTIFIER_ACTIVE = "buddynotifier";
     const PROP_SYSTEM_ADDRESS  = "system-address";
+    const PROP_L10N_FILE       = "l10n-file";
     const PROP_NOTIFY_ON_START = "notify-start";
     const PROP_NOTIFY_ON_STOP  = "notify-stop";
     const PROP_NOTIFY_ON_AUTH  = "notify-auth";
     const PROP_NOTIFY_ON_QUIT  = "notify-quit";
+    const PROP_NOTIFY_DELAY    = "notify-delay";
     const PROP_DATE_FORMAT     = "date-format";
  
     const DB_ADDRESSES         = "address.yml";
@@ -46,7 +49,8 @@ class BuddyNotify extends PluginBase implements CommandExecutor
     const COMMAND_SEND         = "cmd-send";
     
     const SYSTEM               = "___SYSTEM___";
-            
+    const TEMPDISABLE          = ".disable";
+    
     /** @var EventListener */
     protected $listener;
 
@@ -60,7 +64,10 @@ class BuddyNotify extends PluginBase implements CommandExecutor
     protected $notifyOnAuth = true;
    /** @var boolean */
     protected $notifyOnQuit = true;
-    
+
+    /** @var int */
+    protected $notifyDelay = 1000 * 5;
+
     /** @var String */
     protected $systemAddress;
     
@@ -76,13 +83,17 @@ class BuddyNotify extends PluginBase implements CommandExecutor
     /** @var array */
     protected $l10n = [];
     
+    /** @var array */
+    protected $tasks = [];
+    
     public function onEnable()
     {
         @mkdir($this->getDataFolder());
         $this->saveDefaultConfig();
         
-        /* messages configuration and localization file */
+        /* messages configuration and localization files */
         $this->saveResource("l10n.yml", false);
+        $this->saveResource("l10n_html.yml", false);
         
         $this->listener = new EventListener($this);
         $this->getServer()->getPluginManager()->registerEvents($this->listener, $this);
@@ -94,9 +105,15 @@ class BuddyNotify extends PluginBase implements CommandExecutor
         $this->notifyOnStop = $config[BuddyNotify::PROP_NOTIFY_ON_STOP];
         $this->notifyOnAuth = $config[BuddyNotify::PROP_NOTIFY_ON_AUTH];
         $this->notifyOnQuit = $config[BuddyNotify::PROP_NOTIFY_ON_QUIT];
+        $this->notifyDelay = $config[BuddyNotify::PROP_NOTIFY_DELAY];
         $this->dateFormat = $config[BuddyNotify::PROP_DATE_FORMAT];
         
-        $this->l10n = (new Config($this->getDataFolder() . "l10n.yml"))->getAll();
+        $l10n_file = $config[BuddyNotify::PROP_L10N_FILE];
+        if( !isset($l10n_file) || (\strlen($l10n_file) === 0) ) 
+        {
+            $l10n_file = "l10n.yml";
+        }
+        $this->l10n = (new Config($this->getDataFolder() . $l10n_file))->getAll();
         
         $this->addressConfigPath = $this->getDataFolder() . BuddyNotify::DB_ADDRESSES;
         if( !file_exists($this->addressConfigPath) )
@@ -123,26 +140,40 @@ class BuddyNotify extends PluginBase implements CommandExecutor
         /* startup notification */
         if( $this->isFeatureEnabled(BuddyNotify::PROP_NOTIFY_ON_START) === true )
         {
-            $date = \date($this->dateFormat);
-            $srvname = $this->getServer()->getServerName();
-            $srvvers = $this->getServer()->getName() . " - " . $this->getServer()->getPocketMineVersion();
+            /* test for temporary notification suspension */
+            if( !\file_exists($this->getDataFolder().BuddyNotify::TEMPDISABLE) )
+            {
+                $date = \date($this->dateFormat);
+                $srvname = $this->getServer()->getServerName();
+                $srvvers = $this->getServer()->getName() . " - " . $this->getServer()->getPocketMineVersion();
             
-            $subject  = $this->l10n["email"]["subject"]["prefix"];
-            $subject .=  \sprintf( $this->l10n["email"]["subject"]["event-start"],$srvname);
+                $subject  = $this->l10n["email"]["subject"]["prefix"];
+                $subject .=  \sprintf( $this->l10n["email"]["subject"]["event-start"],$srvname);
             
-            $body = \sprintf( $this->l10n["email"]["body"]["event-start"],$date,$srvname,$srvvers);
+                $body = \sprintf( $this->l10n["email"]["body"]["event-start"],$date,$srvname,$srvvers);
 
-            /* future - add plugins installed to the message */
-//            $plugins = $this->getServer()->getPluginManager()->getPlugins();
+                /* future - add plugins installed to the message */
+//              $plugins = $this->getServer()->getPluginManager()->getPlugins();
             
-            $this->sendSystemAlert($subject, $body);
+                $this->sendSystemAlert($subject, $body);
+            }
         }
+ 
+        if( \file_exists($this->getDataFolder().BuddyNotify::TEMPDISABLE) )
+        {
+            /* remove temporary notification suspension */
+            $this->getLogger()->info("Found temporary notification suspension file: " .
+                                        $this->getDataFolder().BuddyNotify::TEMPDISABLE);
+            \unlink($this->getDataFolder().BuddyNotify::TEMPDISABLE);
+        }
+        
     } /* onEnable */
 
     public function onDisable() 
     {
         /* shutdown notification */
-        if( $this->isFeatureEnabled(BuddyNotify::PROP_NOTIFY_ON_STOP) === true )
+        if( $this->isFeatureEnabled(BuddyNotify::PROP_NOTIFY_ON_STOP) === true &&
+            !\file_exists($this->getDataFolder().BuddyNotify::TEMPDISABLE) )
         {
             $date = \date($this->dateFormat);
             $srvname = $this->getServer()->getServerName();
@@ -155,6 +186,10 @@ class BuddyNotify extends PluginBase implements CommandExecutor
             
             $this->sendSystemAlert($subject, $body);
         }
+        
+        /* clear any pending tasks */
+        $this->getServer()->getScheduler()->cancelTasks($this);
+        
     } /* onDisable */
     
     public function onCommand(CommandSender $sender, Command $command, $label, array $args)
@@ -342,18 +377,60 @@ class BuddyNotify extends PluginBase implements CommandExecutor
         switch( $event )
         {
             case BuddyNotify::EVENT_AUTH:
-                $this->sendBuddyAlert($player, $event);
-                break;
+                /* spam prevention -
+                 *  Mobile players can quit/join in short duration. We delay processing QUIT events to limit multiple emails
+                 *  in a short duration between join/quit/join events. If there is a pending QUIT event, cancel it!
+                 */
                 
-            case BuddyNotify::EVENT_QUIT:
-                /* spam prevention - only notify when the player was legitimately logged in before quitting */
-                $authplugin = $this->getServer()->getPluginManager()->getPlugIn("SimpleAuth");
-                if( ($authplugin !== null) && $authplugin->isPlayerAuthenticated($player) )
+                if( isset($this->tasks[$playername][BuddyNotify::EVENT_QUIT]) )
+                {
+                    $task = $this->tasks[$playername][BuddyNotify::EVENT_QUIT];
+                    $task->onCancel();
+                    $this->getServer()->getScheduler()->cancelTask($task->getTaskId());
+                    unset($this->tasks[$playername][BuddyNotify::EVENT_QUIT]);
+                    /* do nothing */
+                }
+                else
                 {
                     $this->sendBuddyAlert($player, $event);
                 }
                 break;
                 
+            case BuddyNotify::EVENT_QUIT:
+                           
+                /* spam prevention - 
+                 *  Mobile players can quit/join in short duration. We delay processing QUIT events to limit multiple emails
+                 *  in a short duration between join/quit/join events. 
+                 *  1. A pending alert means the Player has not re-join in the time allotted in 'notify-delay' configuration.
+                 *     Send the player's buddies an email informing the Player is no longer in the game.
+                 *  2. A player must have been authenticated with SimpleAuth to verify they are a legitimate player. 
+                 *     Create a quit task and schedule for notification, pending a re-join event before the task executes.
+                 *  3. Otherwise, a Player joined the server but did not authenticate with SimpleAuth.
+                 *     Player may not be a valid Player; therefore, we do not send a notification until they Authenticate.
+                 */ 
+                
+                if( isset($this->tasks[$playername][BuddyNotify::EVENT_QUIT]) &&
+                    ($this->getServer()->getPlayer($playername) === null) )
+                {
+                    unset($this->tasks[$playername][BuddyNotify::EVENT_QUIT]);
+                    $this->sendBuddyAlert($player, $event);
+                }
+                else 
+                {
+                    $authplugin = $this->getServer()->getPluginManager()->getPlugIn("SimpleAuth");
+                    if( ($authplugin !== null) && $authplugin->isPlayerAuthenticated($player) )
+                    {
+                        /* create QUIT task and schedule to trap condition where user quits/joins in short duration */
+                        $task = new EventTask($this, $player, BuddyNotify::EVENT_QUIT);
+                        if( $this->getServer()->getScheduler()->scheduleDelayedTask($task, $this->notifyDelay) != null )
+                        { 
+                            $this->tasks[$playername][BuddyNotify::EVENT_QUIT] = $task;
+                        }
+                        
+                    } /* isPlayerAuthenticated */
+                }
+                break;
+            
         } /* switch */
         
     } /* onEvent */
@@ -388,6 +465,24 @@ class BuddyNotify extends PluginBase implements CommandExecutor
         
     } /* isFeatureEnabled */
     
+    public function setFeature($feature, $active = true)
+    {
+        switch( $feature )
+        {
+            case BuddyNotify::PROP_NOTIFY_ON_START:
+                $this->notifyOnStart = $active;
+                
+            case BuddyNotify::PROP_NOTIFY_ON_STOP:
+                $this->notifyOnStop = $active;
+                
+            case BuddyNotify::PROP_NOTIFY_ON_AUTH:
+                $this->notifyOnAuth = $active;
+                
+            case BuddyNotify::PROP_NOTIFY_ON_QUIT:
+                $this->notifyOnQuit = $active;
+        }
+    } /* setFeature */
+    
     public function isPlayerRegistered($playername)
     {
         return ($this->getAddressConfig()->get(\strtolower($playername)) === false) ? false : true;
@@ -405,7 +500,7 @@ class BuddyNotify extends PluginBase implements CommandExecutor
         return $mybuddies;
         
     } /* getBuddyList */
-        
+
     public function sendEmail($from, $to, $subject, $bodytext, $bcc = null )
     {
         /** @var String */
@@ -452,6 +547,11 @@ class BuddyNotify extends PluginBase implements CommandExecutor
             $headers[] = "Bcc: " . $bcc;
         }
         
+        if( \stripos($this->l10n["email"]["header-mime"],"text/html") !== false )
+        {
+            $bodytext = "<html><head>" . $this->l10n["email"]["body"]["html-head"] . "</head><body>" . $bodytext . "</body></html>";
+        }
+        
         /* send the message */       
         if( mail($toaddress, $subject, $bodytext, implode( $this->l10n["email"]["header-crlf"], $headers ),"-f " . $fromaddress) )
         {
@@ -465,7 +565,7 @@ class BuddyNotify extends PluginBase implements CommandExecutor
         return $message;
         
     } /* sendEmail */
-    
+
     protected function getAddressConfig()
     {
         return new Config($this->addressConfigPath, Config::YAML);
@@ -554,7 +654,7 @@ class BuddyNotify extends PluginBase implements CommandExecutor
         
         return ( $buddyfound === true ) ? 
             TextFormat::GREEN . \sprintf( $this->l10n["commands"]["msg-del-success"], $buddyname ) :
-            TextFormat::YELLOW   . \sprintf( $this->l10n["commands"]["msg-del-error"]  , $buddyname );
+            TextFormat::YELLOW . \sprintf( $this->l10n["commands"]["msg-del-error"]  , $buddyname );
         
     } /* removeBuddy */
     
@@ -708,14 +808,19 @@ class BuddyNotify extends PluginBase implements CommandExecutor
         foreach( $players as $player )
         {
             $name = $player->getDisplayName();
-            if( \strcmp($name, $playername) !== 0 )
+            if( \strcmp(\strtolower($name), $playername) !== 0 )
             {
                 $numplayers = $numplayers + 1;
                 $world = $player->getLevel()->getFolderName();
-//                $mode = $player->getGamemode();
-                $message .= \sprintf($this->l10n["email"]["body"]["players-row"], $name, $world);
+                $mode = Server::getGamemodeString($player->getGamemode());
+                $message .= \sprintf($this->l10n["email"]["body"]["players-row"], $name, $world, $mode);
             }
-        } 
+        }
+        
+        if( isset($this->l10n["email"]["body"]["players-ftr"]) )
+        {
+            $message .= $this->l10n["email"]["body"]["players-ftr"];
+        }
         
         return ($numplayers >= 1) ? ($message) : null;
         

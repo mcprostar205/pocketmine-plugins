@@ -1,9 +1,11 @@
 ---
 buddynotifier: true
 system-address: 
+l10n-file: l10n.yml
 notify-start: true
 notify-stop: true
 notify-auth: true
 notify-quit: true
+notify-delay: 5000
 date-format: "D M j, Y, g:i a"
 ...

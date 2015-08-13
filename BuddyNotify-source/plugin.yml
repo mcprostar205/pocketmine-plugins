@@ -1,6 +1,6 @@
 name: BuddyNotify
 main: BuddyNotify\BuddyNotify
-version: "1.0"
+version: "1.1"
 api: [1.10.0]
 load: STARTUP
 author: Scott Handley

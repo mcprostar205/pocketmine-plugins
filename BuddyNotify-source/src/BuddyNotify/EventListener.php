@@ -2,6 +2,7 @@
 
 /* 
  * Copyright (C) 2015 Scott Handley
+ * https://github.com/mcprostar205/pocketmine-plugins/tree/master/BuddyNotify-source
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,16 +23,18 @@ namespace BuddyNotify;
 use pocketmine\event\Listener;
 use SimpleAuth\event\PlayerAuthenticateEvent;
 use pocketmine\event\player\PlayerQuitEvent; 
+use pocketmine\event\server\ServerCommandEvent;
 
 class EventListener implements Listener
 {              
     /** @var BuddyNotify */
     private $plugin;
-
+    
     public function __construct(BuddyNotify $plugin)
     {
         $this->plugin = $plugin;
-    }
+        
+    } // __construct
         
     public function onPlayerAuthenticate(PlayerAuthenticateEvent $event)
     {
@@ -39,7 +42,8 @@ class EventListener implements Listener
         {
             $this->plugin->onEvent($event->getPlayer(),BuddyNotify::EVENT_AUTH);
         }
-    }
+        
+    } // onPlayerAuthenticate
         
     public function onPlayerQuit(PlayerQuitEvent $event)
     {
@@ -47,7 +51,37 @@ class EventListener implements Listener
         {
             $this->plugin->onEvent($event->getPlayer(),BuddyNotify::EVENT_QUIT);
         }
-    }
+        
+    } // onPlayerQuit
+
+    public function onServerCommand(ServerCommandEvent $event)
+    {
+        /* check for suppressing SHUTDOWN/STARTUP/RELOAD notification 1 time */
+        $message = $event->getCommand();
+        if( !isset($message) || (isset($message) && \strlen($message) === 0) )
+        {
+            return;
+        }
+        else if( \substr_compare($message,"stop",0,4) === 0 )
+        {
+            $words = \explode(" ", $message);
+            foreach( $words as $word )
+            {
+                if( isset($word[1]) && ($word === "noemail") )
+                {
+                    $this->plugin->setFeature(BuddyNotify::PROP_NOTIFY_ON_QUIT,false);
+                    \touch($this->plugin->getDataFolder().BuddyNotify::TEMPDISABLE);
+                    break;
+                }
+            }
+        }
+        else if( \substr_compare($message,"reload",0,6) === 0 )
+        {
+            $this->plugin->setFeature(BuddyNotify::PROP_NOTIFY_ON_QUIT,false);
+            \touch($this->plugin->getDataFolder().BuddyNotify::TEMPDISABLE);
+        }
+        
+    } // onServerCommand
 }
 
 ?>
