@@ -812,8 +812,9 @@ class BuddyNotify extends PluginBase implements CommandExecutor
             {
                 $numplayers = $numplayers + 1;
                 $world = $player->getLevel()->getFolderName();
-                $mode = Server::getGamemodeString($player->getGamemode());
-                $message .= \sprintf($this->l10n["email"]["body"]["players-row"], $name, $world, $mode);
+//                $mode = $this->getServer()->getGamemodeString($player->getGamemode());
+//                $message .= \sprintf($this->l10n["email"]["body"]["players-row"], $name, $world, $mode);
+                $message .= \sprintf($this->l10n["email"]["body"]["players-row"], $name, $world);
             }
         }
         

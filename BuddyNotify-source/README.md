@@ -162,6 +162,10 @@ All methods are available through the main plugin object
 
 ## Release Notes
 
+### 1.1.1
+
+* Fixed `ClassNotFoundException` experienced on some servers.
+
 ### 1.1
 
 * Improved player join/quit email notifications to reduce notification sent when a player drops from the game briefly and re-joins within a specified time interval.
